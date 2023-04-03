@@ -1,0 +1,1790 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>reddit_backend: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">reddit_backend/cmd/reddit_backend/main.go (60.3%)</option>
+				
+				<option value="file1">reddit_backend/pkg/posts/posts_handlers.go (60.3%)</option>
+				
+				<option value="file2">reddit_backend/pkg/posts/posts_services.go (65.6%)</option>
+				
+				<option value="file3">reddit_backend/pkg/posts/postsdb_mock.go (48.8%)</option>
+				
+				<option value="file4">reddit_backend/pkg/repo/mongodb_abstract_layer.go (0.0%)</option>
+				
+				<option value="file5">reddit_backend/pkg/repo/mongodb_abstract_layer_mock.go (46.7%)</option>
+				
+				<option value="file6">reddit_backend/pkg/repo/post_map.go (0.0%)</option>
+				
+				<option value="file7">reddit_backend/pkg/repo/post_mongo.go (60.9%)</option>
+				
+				<option value="file8">reddit_backend/pkg/repo/repo_manager.go (0.0%)</option>
+				
+				<option value="file9">reddit_backend/pkg/repo/session_map.go (0.0%)</option>
+				
+				<option value="file10">reddit_backend/pkg/repo/session_redis.go (0.0%)</option>
+				
+				<option value="file11">reddit_backend/pkg/repo/user_map.go (0.0%)</option>
+				
+				<option value="file12">reddit_backend/pkg/repo/user_mysql.go (100.0%)</option>
+				
+				<option value="file13">reddit_backend/pkg/users/users_handlers.go (100.0%)</option>
+				
+				<option value="file14">reddit_backend/pkg/users/users_services.go (100.0%)</option>
+				
+				<option value="file15">reddit_backend/pkg/users/usersdb_mock.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "context"
+        "database/sql"
+        "flag"
+        "net/http"
+
+        //"sync"
+        "time"
+
+        "reddit_backend/pkg/logging"
+        "reddit_backend/pkg/middleware"
+        posts "reddit_backend/pkg/posts"
+        repo "reddit_backend/pkg/repo"
+        "reddit_backend/pkg/sessions"
+        users "reddit_backend/pkg/users"
+
+        _ "github.com/go-sql-driver/mysql"
+        "github.com/gomodule/redigo/redis"
+        "github.com/gorilla/mux"
+        "go.mongodb.org/mongo-driver/mongo"
+        "go.mongodb.org/mongo-driver/mongo/options"
+        "go.uber.org/zap"
+)
+
+func main() <span class="cov0" title="0">{
+
+        zapLogger, _ := zap.NewDevelopment()
+        defer zapLogger.Sync()
+        logger := zapLogger.Sugar()
+        //mutex for map data
+        //mu := &amp;sync.RWMutex{}
+        //sessionMap := repo.SessionsMap{Mu: mu, Sessions: make(map[string]*repo.Sessions)}
+        //userMap := repo.UserMap{Mu: mu, Users: make(map[string]*repo.User)}
+        //postMap := repo.PostMap{Mu: mu, Posts: make(map[string]*repo.Post)}
+
+        //session redis
+        redisAddr := flag.String("addr", "redis://user:@localhost:6379/0", "redis addr")
+        redisConn, err := redis.DialURL(*redisAddr)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Fatalf("cant connect to redis")
+        }</span>
+
+        //users mysql
+        <span class="cov0" title="0">dsn := "root@tcp(localhost:3306)/coursera?"
+        dsn += "&amp;charset=utf8"
+        dsn += "&amp;interpolateParams=true"
+        mySql, err := sql.Open("mysql", dsn)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Fatalf("cant open mysql: ", err)
+        }</span>
+        <span class="cov0" title="0">mySql.SetMaxOpenConns(10)
+        err = mySql.Ping()
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Fatalf("cant connect to mysql: ", err)
+        }</span>
+
+        //posts mongodb
+        <span class="cov0" title="0">ctx := context.TODO()
+        sess, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Fatalf("cant connect to mongodb: ", err)
+        }</span>
+        <span class="cov0" title="0">collection := sess.Database("coursera").Collection("posts")
+        postsCollection := &amp;repo.MongoCollection{
+                Coll: collection,
+        }
+
+        newSiteMux := ServerMux(mySql, postsCollection, redisConn)
+
+        srv := &amp;http.Server{
+                Handler:      newSiteMux,
+                Addr:         "127.0.0.1:8000",
+                WriteTimeout: 15 * time.Second,
+                ReadTimeout:  15 * time.Second,
+        }
+        logger.Infow("starting server",
+                "addr", srv.Addr,
+        )
+        srv.ListenAndServe()</span>
+}
+
+func ServerMux(dbSql *sql.DB, dbMongo repo.IMongoCollection, redisConn redis.Conn) *http.ServeMux <span class="cov8" title="1">{
+        ctx := context.TODO()
+        zapLogger, _ := zap.NewDevelopment()
+        defer zapLogger.Sync()
+        logger := zapLogger.Sugar()
+        loggerCtx := &amp;logging.Logger{Zap: logger, RequestIDKey: "requestID", LoggerKey: "logger"}
+
+        sessionRedis := repo.SessionsRedis{Logger: loggerCtx, RedisConn: redisConn}
+        userMySql := repo.UserMySql{Logger: loggerCtx, MySql: dbSql}
+        postMongo := repo.PostMongo{Logger: loggerCtx, Mongo: dbMongo, Context: &amp;ctx}
+        repoManger := repo.NewRepoManager(&amp;sessionRedis, &amp;userMySql, &amp;postMongo)
+
+        session := &amp;sessions.Sessions{Repo: repoManger.Sessions, Secret: "test", Logger: loggerCtx}
+        m := middleware.Middleware{Repo: repoManger, Session: session, Logger: loggerCtx}
+        posts := &amp;posts.Posts{Repo: repoManger.Posts, Session: session, Logger: loggerCtx}
+        users := &amp;users.Users{Repo: repoManger.Users, Session: session, Logger: loggerCtx}
+
+        r1 := mux.NewRouter()
+        r1.HandleFunc("/api/posts/", posts.GetAll).Methods("GET")
+        r1.HandleFunc("/api/posts/{category}", posts.GetPostsByCategory).Methods("GET")
+        r1.HandleFunc("/api/post/{id}", posts.GetPostsById).Methods("GET")
+        r1.HandleFunc("/api/post/{id}/upvote", m.Auth(posts.ChangeVote)).Methods("GET")
+        r1.HandleFunc("/api/post/{id}/downvote", m.Auth(posts.ChangeVote)).Methods("GET")
+        r1.HandleFunc("/api/post/{id}/unvote", m.Auth(posts.ChangeVote)).Methods("GET")
+        r1.HandleFunc("/api/post/{id}", m.Auth(posts.CreateComment)).Methods("POST")
+        r1.HandleFunc("/api/posts", m.Auth(posts.CreatePost)).Methods("POST")
+        r1.HandleFunc("/api/post/{id}", m.Auth(posts.DeletePost)).Methods("DELETE")
+        r1.HandleFunc("/api/post/{id}/{comment_id}", m.Auth(posts.DeleteComment)).Methods("DELETE")
+        r1.HandleFunc("/api/user/{user}", posts.GetPosts).Methods("GET")
+        r1.HandleFunc("/api/register", users.CreateUser).Methods("POST")
+        r1.HandleFunc("/api/login", users.Login).Methods("POST")
+        r1.Use(loggerCtx.SetupReqID)
+        r1.Use(loggerCtx.SetupLogger)
+        r1.Use(m.LoggingMiddleware)
+        r1.Use(m.Panic)
+
+        //static
+        r2 := mux.NewRouter()
+        dir := "./web/redditclone/template/"
+        fileServer := http.FileServer(http.Dir(dir))
+        r2.PathPrefix("/").Handler(http.StripPrefix("/", fileServer)).Methods("GET")
+        //r2.Use(m.LoggingMiddleware)
+
+        r2.Use(middleware.StripUrlMiddleware)
+        r2.Use(m.Panic)
+
+        siteMux := http.NewServeMux()
+        siteMux.Handle("/api/", r1)
+        siteMux.Handle("/", r2)
+        return siteMux
+}</span>
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package post
+
+import (
+        "net/http"
+        "reddit_backend/pkg/logging"
+        "reddit_backend/pkg/repo"
+        "reddit_backend/pkg/sessions"
+        "reddit_backend/pkg/utils"
+        "strings"
+
+        "github.com/gorilla/mux"
+)
+
+type Posts struct {
+        Repo    repo.PostDB
+        Session *sessions.Sessions
+        Logger  *logging.Logger
+}
+
+type Post struct {
+        Category string
+        Type     string
+        Title    string
+        Url      string
+        Text     string
+}
+
+type Comment struct {
+        Comment string
+}
+
+func (p *Posts) GetAll(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        posts, err := p.Repo.GetAllPosts(r.Context())
+        if utils.HandleErr(w, r, err, http.StatusInternalServerError, p.Logger) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov0" title="0">utils.HandleResult(w, r, posts, http.StatusOK, p.Logger)</span>
+}
+
+func (p *Posts) GetPosts(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        param := mux.Vars(r)
+        username := param["user"]
+        posts, err := p.Repo.GetPostsByUser(r.Context(), username)
+        if utils.HandleErr(w, r, err, 500, p.Logger) </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">utils.HandleResult(w, r, posts, http.StatusOK, p.Logger)</span>
+}
+
+func (p *Posts) GetPostsByCategory(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        param := mux.Vars(r)
+        category := param["category"]
+        posts, err := p.Repo.GetPostsByCategory(r.Context(), category)
+        if utils.HandleErr(w, r, err, http.StatusInternalServerError, p.Logger) </span><span class="cov8" title="1">{
+                return
+        }</span>
+        <span class="cov8" title="1">utils.HandleResult(w, r, posts, http.StatusOK, p.Logger)</span>
+}
+
+func (p *Posts) GetPostsById(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        param := mux.Vars(r)
+        id := param["id"]
+        posts, err := p.Repo.GetPostsById(r.Context(), id)
+        if utils.HandleErr(w, r, err, 400, p.Logger) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov0" title="0">utils.HandleResult(w, r, posts, http.StatusOK, p.Logger)</span>
+}
+
+func (p *Posts) CreatePost(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        user, err := p.Session.GetUserFromContext(r.Context())
+        if utils.HandleErr(w, r, err, 401, p.Logger) </span><span class="cov8" title="1">{
+                return
+        }</span>
+        <span class="cov8" title="1">var post Post
+        if utils.HandleErrDecodeReq(w, r, &amp;post) </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">result, err := p.createPost(r.Context(), post, user)
+        if utils.HandleErr(w, r, err, http.StatusInternalServerError, p.Logger) </span><span class="cov8" title="1">{
+                return
+        }</span>
+        <span class="cov8" title="1">utils.HandleResult(w, r, result, http.StatusCreated, p.Logger)</span>
+}
+
+func (p *Posts) DeletePost(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        param := mux.Vars(r)
+        postId := param["id"]
+        _, err := p.Session.GetUserFromContext(r.Context())
+        if utils.HandleErr(w, r, err, 401, p.Logger) </span><span class="cov8" title="1">{
+                return
+        }</span>
+        <span class="cov8" title="1">err = p.Repo.DeletePostById(r.Context(), postId)
+        if utils.HandleErr(w, r, err, 500, p.Logger) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov8" title="1">utils.HandleResult(w, r, &amp;utils.ReturnMsg{Msg: "success"}, http.StatusCreated, p.Logger)</span>
+}
+
+func (p *Posts) DeleteComment(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        params := mux.Vars(r)
+        postId := params["id"]
+        commentId := params["comment_id"]
+        post, err := p.deleteComment(r.Context(), postId, commentId)
+        if utils.HandleErr(w, r, err, 404, p.Logger) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov0" title="0">utils.HandleResult(w, r, &amp;post, http.StatusCreated, p.Logger)</span>
+}
+
+func (p *Posts) CreateComment(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        param := mux.Vars(r)
+        postId := param["id"]
+        user, err := p.Session.GetUserFromContext(r.Context())
+        if utils.HandleErr(w, r, err, 401, p.Logger) </span><span class="cov8" title="1">{
+                return
+        }</span>
+        <span class="cov8" title="1">var comment Comment
+        if utils.HandleErrDecodeReq(w, r, &amp;comment) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov8" title="1">result, err := p.addCommentToPost(r.Context(), postId, user, comment.Comment)
+        if utils.HandleErr(w, r, err, 404, p.Logger) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov8" title="1">utils.HandleResult(w, r, result, http.StatusCreated, p.Logger)</span>
+}
+
+func (p *Posts) ChangeVote(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var vote int
+        if strings.Contains(r.RequestURI, "/unvote") </span><span class="cov8" title="1">{
+                vote = 0
+        }</span> else<span class="cov8" title="1"> if strings.Contains(r.RequestURI, "/upvote") </span><span class="cov8" title="1">{
+                vote = 1
+        }</span> else<span class="cov0" title="0"> {
+                vote = -1
+        }</span>
+        <span class="cov8" title="1">param := mux.Vars(r)
+        postId := param["id"]
+        user, err := p.Session.GetUserFromContext(r.Context())
+        if utils.HandleErr(w, r, err, 401, p.Logger) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov8" title="1">post, err := p.Repo.GetPostsById(r.Context(), postId)
+        if utils.HandleErr(w, r, err, 400, p.Logger) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov8" title="1">result, err := p.changeVote(r.Context(), post, user, vote)
+        if utils.HandleErr(w, r, err, 500, p.Logger) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov8" title="1">utils.HandleResult(w, r, result, http.StatusOK, p.Logger)</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package post
+
+import (
+        "context"
+        "reddit_backend/pkg/repo"
+        "reddit_backend/pkg/utils"
+        "time"
+)
+
+func (p *Posts) createPost(ctx context.Context, post Post, user *repo.User) (repo.Post, error) <span class="cov8" title="1">{
+        result := repo.Post{
+                Score:    1,
+                Views:    0,
+                Type:     post.Type,
+                Title:    post.Title,
+                Url:      post.Url,
+                Author:   user,
+                Category: post.Category,
+                Text:     post.Text,
+                Votes: []repo.Vote{
+                        {
+                                User: user.Id,
+                                Vote: 1,
+                        },
+                },
+                Comments:         []repo.Comment{},
+                Created:          time.Now().Format("2006-01-02T15:04:05Z07:00"),
+                UpvoteParcentage: 100,
+                Id:               utils.GenerateId(),
+        }
+        err := p.Repo.CreatePost(ctx, result)
+        if err != nil </span><span class="cov8" title="1">{
+                return repo.Post{}, err
+        }</span>
+
+        <span class="cov8" title="1">return result, nil</span>
+}
+
+func (p *Posts) addCommentToPost(ctx context.Context, postId string, user *repo.User, commentMsg string) (repo.Post, error) <span class="cov8" title="1">{
+        post, err := p.Repo.GetPostsById(ctx, postId)
+        if err != nil </span><span class="cov0" title="0">{
+                return repo.Post{}, utils.ErrNoPost
+        }</span>
+        <span class="cov8" title="1">comments := make([]repo.Comment, len(post.Comments))
+        copy(comments, post.Comments)
+        comment := repo.Comment{
+                Created: time.Now().Format("2006-01-02T15:04:05Z07:00"),
+                Author:  user,
+                Body:    commentMsg,
+                Id:      utils.GenerateId(),
+        }
+        comments = append(comments, comment)
+        post.Comments = comments
+        err = p.Repo.AddComment(ctx, post.Id, comment)
+        if err != nil </span><span class="cov0" title="0">{
+                return repo.Post{}, err
+        }</span>
+        <span class="cov8" title="1">return post, nil</span>
+}
+
+func (p *Posts) deleteComment(ctx context.Context, postId string, commentId string) (repo.Post, error) <span class="cov0" title="0">{
+        post, err := p.Repo.GetPostsById(ctx, postId)
+        if err != nil </span><span class="cov0" title="0">{
+                return repo.Post{}, utils.ErrNoPost
+        }</span>
+        <span class="cov0" title="0">comments := make([]repo.Comment, len(post.Comments))
+        copy(comments, post.Comments)
+        for i, v := range comments </span><span class="cov0" title="0">{
+                if v.Id == commentId </span><span class="cov0" title="0">{
+                        comments[i] = comments[len(comments)-1]
+                        comments[len(comments)-1] = repo.Comment{}
+                        comments = comments[:len(comments)-1]
+                }</span>
+        }
+        <span class="cov0" title="0">post.Comments = comments
+        err = p.Repo.UpdatePost(ctx, post)
+        if err != nil </span><span class="cov0" title="0">{
+                return repo.Post{}, err
+        }</span>
+        <span class="cov0" title="0">return post, nil</span>
+}
+
+func (p *Posts) changeVote(ctx context.Context, post repo.Post, user *repo.User, way int) (repo.Post, error) <span class="cov8" title="1">{
+        voteExist := false
+        countUpvote := 0
+        votes := make([]repo.Vote, len(post.Votes))
+        copy(votes, post.Votes)
+        if way == 0 </span><span class="cov8" title="1">{
+                for i, v := range votes </span><span class="cov8" title="1">{
+                        if v.User == user.Id </span><span class="cov8" title="1">{
+                                votes[i] = votes[len(votes)-1]
+                                votes[len(votes)-1] = repo.Vote{}
+                                votes = votes[:len(votes)-1]
+                        }</span>
+                }
+        }
+        <span class="cov8" title="1">score := 0
+        for i, v := range votes </span><span class="cov8" title="1">{
+                if v.User == user.Id </span><span class="cov8" title="1">{
+                        votes[i].Vote = way
+                        voteExist = true
+                }</span>
+                <span class="cov8" title="1">if votes[i].Vote == 1 </span><span class="cov8" title="1">{
+                        countUpvote = countUpvote + 1
+                }</span>
+                <span class="cov8" title="1">score = score + votes[i].Vote</span>
+        }
+        <span class="cov8" title="1">if !voteExist &amp;&amp; way != 0 </span><span class="cov0" title="0">{
+                votes = append(votes, repo.Vote{User: user.Id, Vote: way})
+                if way == 1 </span><span class="cov0" title="0">{
+                        countUpvote = countUpvote + 1
+                }</span>
+                <span class="cov0" title="0">score = score + way</span>
+        }
+        <span class="cov8" title="1">post.Score = score
+        if len(votes) &gt; 0 </span><span class="cov8" title="1">{
+                post.UpvoteParcentage = 100 / len(votes) * countUpvote
+        }</span> else<span class="cov8" title="1"> {
+                post.UpvoteParcentage = 0
+        }</span>
+        <span class="cov8" title="1">post.Votes = votes
+        err := p.Repo.UpdatePost(ctx, post)
+        if err != nil </span><span class="cov0" title="0">{
+                return repo.Post{}, err
+        }</span>
+        <span class="cov8" title="1">return post, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Code generated by mockery v2.20.0. DO NOT EDIT.
+
+package post
+
+import (
+        context "context"
+        repo "reddit_backend/pkg/repo"
+
+        mock "github.com/stretchr/testify/mock"
+)
+
+// PostDB is an autogenerated mock type for the PostDB type
+type PostDB struct {
+        mock.Mock
+}
+
+// AddComment provides a mock function with given fields: ctx, postId, comment
+func (_m *PostDB) AddComment(ctx context.Context, postId string, comment repo.Comment) error <span class="cov8" title="1">{
+        ret := _m.Called(ctx, postId, comment)
+
+        var r0 error
+        if rf, ok := ret.Get(0).(func(context.Context, string, repo.Comment) error); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, postId, comment)
+        }</span> else<span class="cov8" title="1"> {
+                r0 = ret.Error(0)
+        }</span>
+
+        <span class="cov8" title="1">return r0</span>
+}
+
+// CreatePost provides a mock function with given fields: ctx, _a1
+func (_m *PostDB) CreatePost(ctx context.Context, _a1 repo.Post) error <span class="cov8" title="1">{
+        ret := _m.Called(ctx, _a1)
+
+        var r0 error
+        if rf, ok := ret.Get(0).(func(context.Context, repo.Post) error); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, _a1)
+        }</span> else<span class="cov8" title="1"> {
+                r0 = ret.Error(0)
+        }</span>
+
+        <span class="cov8" title="1">return r0</span>
+}
+
+// DeletePostById provides a mock function with given fields: ctx, id
+func (_m *PostDB) DeletePostById(ctx context.Context, id string) error <span class="cov8" title="1">{
+        ret := _m.Called(ctx, id)
+
+        var r0 error
+        if rf, ok := ret.Get(0).(func(context.Context, string) error); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, id)
+        }</span> else<span class="cov8" title="1"> {
+                r0 = ret.Error(0)
+        }</span>
+
+        <span class="cov8" title="1">return r0</span>
+}
+
+// GetAllPosts provides a mock function with given fields: ctx
+func (_m *PostDB) GetAllPosts(ctx context.Context) ([]repo.Post, error) <span class="cov0" title="0">{
+        ret := _m.Called(ctx)
+
+        var r0 []repo.Post
+        var r1 error
+        if rf, ok := ret.Get(0).(func(context.Context) ([]repo.Post, error)); ok </span><span class="cov0" title="0">{
+                return rf(ctx)
+        }</span>
+        <span class="cov0" title="0">if rf, ok := ret.Get(0).(func(context.Context) []repo.Post); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx)
+        }</span> else<span class="cov0" title="0"> {
+                if ret.Get(0) != nil </span><span class="cov0" title="0">{
+                        r0 = ret.Get(0).([]repo.Post)
+                }</span>
+        }
+
+        <span class="cov0" title="0">if rf, ok := ret.Get(1).(func(context.Context) error); ok </span><span class="cov0" title="0">{
+                r1 = rf(ctx)
+        }</span> else<span class="cov0" title="0"> {
+                r1 = ret.Error(1)
+        }</span>
+
+        <span class="cov0" title="0">return r0, r1</span>
+}
+
+// GetPostsByCategory provides a mock function with given fields: ctx, category
+func (_m *PostDB) GetPostsByCategory(ctx context.Context, category string) ([]repo.Post, error) <span class="cov8" title="1">{
+        ret := _m.Called(ctx, category)
+
+        var r0 []repo.Post
+        var r1 error
+        if rf, ok := ret.Get(0).(func(context.Context, string) ([]repo.Post, error)); ok </span><span class="cov0" title="0">{
+                return rf(ctx, category)
+        }</span>
+        <span class="cov8" title="1">if rf, ok := ret.Get(0).(func(context.Context, string) []repo.Post); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, category)
+        }</span> else<span class="cov8" title="1"> {
+                if ret.Get(0) != nil </span><span class="cov8" title="1">{
+                        r0 = ret.Get(0).([]repo.Post)
+                }</span>
+        }
+
+        <span class="cov8" title="1">if rf, ok := ret.Get(1).(func(context.Context, string) error); ok </span><span class="cov0" title="0">{
+                r1 = rf(ctx, category)
+        }</span> else<span class="cov8" title="1"> {
+                r1 = ret.Error(1)
+        }</span>
+
+        <span class="cov8" title="1">return r0, r1</span>
+}
+
+// GetPostsById provides a mock function with given fields: ctx, id
+func (_m *PostDB) GetPostsById(ctx context.Context, id string) (repo.Post, error) <span class="cov8" title="1">{
+        ret := _m.Called(ctx, id)
+
+        var r0 repo.Post
+        var r1 error
+        if rf, ok := ret.Get(0).(func(context.Context, string) (repo.Post, error)); ok </span><span class="cov0" title="0">{
+                return rf(ctx, id)
+        }</span>
+        <span class="cov8" title="1">if rf, ok := ret.Get(0).(func(context.Context, string) repo.Post); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, id)
+        }</span> else<span class="cov8" title="1"> {
+                r0 = ret.Get(0).(repo.Post)
+        }</span>
+
+        <span class="cov8" title="1">if rf, ok := ret.Get(1).(func(context.Context, string) error); ok </span><span class="cov0" title="0">{
+                r1 = rf(ctx, id)
+        }</span> else<span class="cov8" title="1"> {
+                r1 = ret.Error(1)
+        }</span>
+
+        <span class="cov8" title="1">return r0, r1</span>
+}
+
+// GetPostsByUser provides a mock function with given fields: ctx, username
+func (_m *PostDB) GetPostsByUser(ctx context.Context, username string) ([]repo.Post, error) <span class="cov0" title="0">{
+        ret := _m.Called(ctx, username)
+
+        var r0 []repo.Post
+        var r1 error
+        if rf, ok := ret.Get(0).(func(context.Context, string) ([]repo.Post, error)); ok </span><span class="cov0" title="0">{
+                return rf(ctx, username)
+        }</span>
+        <span class="cov0" title="0">if rf, ok := ret.Get(0).(func(context.Context, string) []repo.Post); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, username)
+        }</span> else<span class="cov0" title="0"> {
+                if ret.Get(0) != nil </span><span class="cov0" title="0">{
+                        r0 = ret.Get(0).([]repo.Post)
+                }</span>
+        }
+
+        <span class="cov0" title="0">if rf, ok := ret.Get(1).(func(context.Context, string) error); ok </span><span class="cov0" title="0">{
+                r1 = rf(ctx, username)
+        }</span> else<span class="cov0" title="0"> {
+                r1 = ret.Error(1)
+        }</span>
+
+        <span class="cov0" title="0">return r0, r1</span>
+}
+
+// UpdatePost provides a mock function with given fields: ctx, _a1
+func (_m *PostDB) UpdatePost(ctx context.Context, _a1 repo.Post) error <span class="cov8" title="1">{
+        ret := _m.Called(ctx, _a1)
+
+        var r0 error
+        if rf, ok := ret.Get(0).(func(context.Context, repo.Post) error); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, _a1)
+        }</span> else<span class="cov8" title="1"> {
+                r0 = ret.Error(0)
+        }</span>
+
+        <span class="cov8" title="1">return r0</span>
+}
+
+type mockConstructorTestingTNewPostDB interface {
+        mock.TestingT
+        Cleanup(func())
+}
+
+// NewPostDB creates a new instance of PostDB. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+func NewPostDB(t mockConstructorTestingTNewPostDB) *PostDB <span class="cov0" title="0">{
+        mock := &amp;PostDB{}
+        mock.Mock.Test(t)
+
+        t.Cleanup(func() </span><span class="cov0" title="0">{ mock.AssertExpectations(t) }</span>)
+
+        <span class="cov0" title="0">return mock</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package repo
+
+import (
+        "context"
+
+        "go.mongodb.org/mongo-driver/mongo"
+        "go.mongodb.org/mongo-driver/mongo/options"
+)
+
+type IMongoDatabase interface {
+        Collection(name string) IMongoCollection
+}
+
+type IMongoCollection interface {
+        Find(ctx context.Context, filter interface{}, opts ...*options.FindOptions) (IMongoCursor, error)
+        FindOne(ctx context.Context, filter interface{}, opts ...*options.FindOneOptions) IMongoSingleResult
+        DeleteOne(ctx context.Context, filter interface{}, opts ...*options.DeleteOptions) (IMongoDeleteResult, error)
+        UpdateOne(ctx context.Context, filter interface{}, update interface{}, opts ...*options.UpdateOptions) (IMongoUpdateResult, error)
+        InsertOne(ctx context.Context, document interface{}, opts ...*options.InsertOneOptions) (MongoInsertOneResult, error)
+}
+
+type IMongoSingleResult interface {
+        Decode(v interface{}) error
+}
+type IMongoDeleteResult interface {
+}
+
+type IMongoUpdateResult interface {
+        UnmarshalBSON(b []byte) error
+}
+
+type IMongoCursor interface {
+        Close(context.Context) error
+        Next(context.Context) bool
+        Decode(interface{}) error
+        All(ctx context.Context, results interface{}) error
+}
+
+type MongoCollection struct {
+        Coll *mongo.Collection
+}
+
+type MongoSingleResult struct {
+        sr *mongo.SingleResult
+}
+
+type MongoDeleteResult struct {
+        dr *mongo.DeleteResult
+}
+type MongoUpdateResult struct {
+        ur *mongo.UpdateResult
+}
+type MongoInsertOneResult struct {
+        ir *mongo.InsertOneResult
+}
+type MongoCursor struct {
+        cur *mongo.Cursor
+}
+
+func (mur *MongoUpdateResult) UnmarshalBSON(b []byte) error <span class="cov0" title="0">{
+        return mur.ur.UnmarshalBSON(b)
+}</span>
+
+func (msr *MongoSingleResult) Decode(v interface{}) error <span class="cov0" title="0">{
+        return msr.sr.Decode(v)
+}</span>
+
+func (mc *MongoCursor) Close(ctx context.Context) error <span class="cov0" title="0">{
+        return mc.cur.Close(ctx)
+}</span>
+
+func (mc *MongoCursor) Next(ctx context.Context) bool <span class="cov0" title="0">{
+        return mc.cur.Next(ctx)
+}</span>
+
+func (mc *MongoCursor) Decode(val interface{}) error <span class="cov0" title="0">{
+        return mc.cur.Decode(val)
+}</span>
+func (mc *MongoCursor) All(ctx context.Context, results interface{}) error <span class="cov0" title="0">{
+        return mc.cur.All(ctx, results)
+}</span>
+
+func (mc *MongoCollection) Find(ctx context.Context, filter interface{}, opts ...*options.FindOptions) (IMongoCursor, error) <span class="cov0" title="0">{
+        cursorResult, err := mc.Coll.Find(ctx, filter, opts...)
+        return &amp;MongoCursor{cur: cursorResult}, err
+}</span>
+
+func (mc *MongoCollection) FindOne(ctx context.Context, filter interface{}, opts ...*options.FindOneOptions) IMongoSingleResult <span class="cov0" title="0">{
+        singleResult := mc.Coll.FindOne(ctx, filter, opts...)
+        return &amp;MongoSingleResult{sr: singleResult}
+}</span>
+
+func (mc *MongoCollection) DeleteOne(ctx context.Context, filter interface{}, opts ...*options.DeleteOptions) (IMongoDeleteResult, error) <span class="cov0" title="0">{
+        deleteResult, err := mc.Coll.DeleteOne(ctx, filter, opts...)
+        return &amp;MongoDeleteResult{dr: deleteResult}, err
+}</span>
+
+func (mc *MongoCollection) UpdateOne(ctx context.Context, filter interface{}, update interface{}, opts ...*options.UpdateOptions) (IMongoUpdateResult, error) <span class="cov0" title="0">{
+        updateResilt, err := mc.Coll.UpdateOne(ctx, filter, update, opts...)
+        return &amp;MongoUpdateResult{ur: updateResilt}, err
+}</span>
+func (mc *MongoCollection) InsertOne(ctx context.Context, document interface{}, opts ...*options.InsertOneOptions) (MongoInsertOneResult, error) <span class="cov0" title="0">{
+        insertResilt, err := mc.Coll.InsertOne(ctx, document, opts...)
+        return MongoInsertOneResult{ir: insertResilt}, err
+}</span>
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// Code generated by MockGen. DO NOT EDIT.
+// Source: mongodb_abstract_layer.go
+
+// Package repo is a generated GoMock package.
+package repo
+
+import (
+        context "context"
+        reflect "reflect"
+
+        gomock "github.com/golang/mock/gomock"
+        options "go.mongodb.org/mongo-driver/mongo/options"
+)
+
+// MockIMongoDatabase is a mock of IMongoDatabase interface.
+type MockIMongoDatabase struct {
+        ctrl     *gomock.Controller
+        recorder *MockIMongoDatabaseMockRecorder
+}
+
+// MockIMongoDatabaseMockRecorder is the mock recorder for MockIMongoDatabase.
+type MockIMongoDatabaseMockRecorder struct {
+        mock *MockIMongoDatabase
+}
+
+// NewMockIMongoDatabase creates a new mock instance.
+func NewMockIMongoDatabase(ctrl *gomock.Controller) *MockIMongoDatabase <span class="cov0" title="0">{
+        mock := &amp;MockIMongoDatabase{ctrl: ctrl}
+        mock.recorder = &amp;MockIMongoDatabaseMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIMongoDatabase) EXPECT() *MockIMongoDatabaseMockRecorder <span class="cov0" title="0">{
+        return m.recorder
+}</span>
+
+// Collection mocks base method.
+func (m *MockIMongoDatabase) Collection(name string) IMongoCollection <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Collection", name)
+        ret0, _ := ret[0].(IMongoCollection)
+        return ret0
+}</span>
+
+// Collection indicates an expected call of Collection.
+func (mr *MockIMongoDatabaseMockRecorder) Collection(name interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Collection", reflect.TypeOf((*MockIMongoDatabase)(nil).Collection), name)
+}</span>
+
+// MockIMongoCollection is a mock of IMongoCollection interface.
+type MockIMongoCollection struct {
+        ctrl     *gomock.Controller
+        recorder *MockIMongoCollectionMockRecorder
+}
+
+// MockIMongoCollectionMockRecorder is the mock recorder for MockIMongoCollection.
+type MockIMongoCollectionMockRecorder struct {
+        mock *MockIMongoCollection
+}
+
+// NewMockIMongoCollection creates a new mock instance.
+func NewMockIMongoCollection(ctrl *gomock.Controller) *MockIMongoCollection <span class="cov8" title="1">{
+        mock := &amp;MockIMongoCollection{ctrl: ctrl}
+        mock.recorder = &amp;MockIMongoCollectionMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIMongoCollection) EXPECT() *MockIMongoCollectionMockRecorder <span class="cov8" title="1">{
+        return m.recorder
+}</span>
+
+// DeleteOne mocks base method.
+func (m *MockIMongoCollection) DeleteOne(ctx context.Context, filter interface{}, opts ...*options.DeleteOptions) (IMongoDeleteResult, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        varargs := []interface{}{ctx, filter}
+        for _, a := range opts </span><span class="cov0" title="0">{
+                varargs = append(varargs, a)
+        }</span>
+        <span class="cov0" title="0">ret := m.ctrl.Call(m, "DeleteOne", varargs...)
+        ret0, _ := ret[0].(IMongoDeleteResult)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1</span>
+}
+
+// DeleteOne indicates an expected call of DeleteOne.
+func (mr *MockIMongoCollectionMockRecorder) DeleteOne(ctx, filter interface{}, opts ...interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        varargs := append([]interface{}{ctx, filter}, opts...)
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOne", reflect.TypeOf((*MockIMongoCollection)(nil).DeleteOne), varargs...)
+}</span>
+
+// Find mocks base method.
+func (m *MockIMongoCollection) Find(ctx context.Context, filter interface{}, opts ...*options.FindOptions) (IMongoCursor, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        varargs := []interface{}{ctx, filter}
+        for _, a := range opts </span><span class="cov0" title="0">{
+                varargs = append(varargs, a)
+        }</span>
+        <span class="cov8" title="1">ret := m.ctrl.Call(m, "Find", varargs...)
+        ret0, _ := ret[0].(IMongoCursor)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1</span>
+}
+
+// Find indicates an expected call of Find.
+func (mr *MockIMongoCollectionMockRecorder) Find(ctx, filter interface{}, opts ...interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        varargs := append([]interface{}{ctx, filter}, opts...)
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockIMongoCollection)(nil).Find), varargs...)
+}</span>
+
+// FindOne mocks base method.
+func (m *MockIMongoCollection) FindOne(ctx context.Context, filter interface{}, opts ...*options.FindOneOptions) IMongoSingleResult <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        varargs := []interface{}{ctx, filter}
+        for _, a := range opts </span><span class="cov0" title="0">{
+                varargs = append(varargs, a)
+        }</span>
+        <span class="cov8" title="1">ret := m.ctrl.Call(m, "FindOne", varargs...)
+        ret0, _ := ret[0].(IMongoSingleResult)
+        return ret0</span>
+}
+
+// FindOne indicates an expected call of FindOne.
+func (mr *MockIMongoCollectionMockRecorder) FindOne(ctx, filter interface{}, opts ...interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        varargs := append([]interface{}{ctx, filter}, opts...)
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOne", reflect.TypeOf((*MockIMongoCollection)(nil).FindOne), varargs...)
+}</span>
+
+// InsertOne mocks base method.
+func (m *MockIMongoCollection) InsertOne(ctx context.Context, document interface{}, opts ...*options.InsertOneOptions) (MongoInsertOneResult, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        varargs := []interface{}{ctx, document}
+        for _, a := range opts </span><span class="cov0" title="0">{
+                varargs = append(varargs, a)
+        }</span>
+        <span class="cov0" title="0">ret := m.ctrl.Call(m, "InsertOne", varargs...)
+        ret0, _ := ret[0].(MongoInsertOneResult)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1</span>
+}
+
+// InsertOne indicates an expected call of InsertOne.
+func (mr *MockIMongoCollectionMockRecorder) InsertOne(ctx, document interface{}, opts ...interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        varargs := append([]interface{}{ctx, document}, opts...)
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertOne", reflect.TypeOf((*MockIMongoCollection)(nil).InsertOne), varargs...)
+}</span>
+
+// UpdateOne mocks base method.
+func (m *MockIMongoCollection) UpdateOne(ctx context.Context, filter, update interface{}, opts ...*options.UpdateOptions) (IMongoUpdateResult, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        varargs := []interface{}{ctx, filter, update}
+        for _, a := range opts </span><span class="cov0" title="0">{
+                varargs = append(varargs, a)
+        }</span>
+        <span class="cov8" title="1">ret := m.ctrl.Call(m, "UpdateOne", varargs...)
+        ret0, _ := ret[0].(IMongoUpdateResult)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1</span>
+}
+
+// UpdateOne indicates an expected call of UpdateOne.
+func (mr *MockIMongoCollectionMockRecorder) UpdateOne(ctx, filter, update interface{}, opts ...interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        varargs := append([]interface{}{ctx, filter, update}, opts...)
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOne", reflect.TypeOf((*MockIMongoCollection)(nil).UpdateOne), varargs...)
+}</span>
+
+// MockIMongoSingleResult is a mock of IMongoSingleResult interface.
+type MockIMongoSingleResult struct {
+        ctrl     *gomock.Controller
+        recorder *MockIMongoSingleResultMockRecorder
+}
+
+// MockIMongoSingleResultMockRecorder is the mock recorder for MockIMongoSingleResult.
+type MockIMongoSingleResultMockRecorder struct {
+        mock *MockIMongoSingleResult
+}
+
+// NewMockIMongoSingleResult creates a new mock instance.
+func NewMockIMongoSingleResult(ctrl *gomock.Controller) *MockIMongoSingleResult <span class="cov8" title="1">{
+        mock := &amp;MockIMongoSingleResult{ctrl: ctrl}
+        mock.recorder = &amp;MockIMongoSingleResultMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIMongoSingleResult) EXPECT() *MockIMongoSingleResultMockRecorder <span class="cov8" title="1">{
+        return m.recorder
+}</span>
+
+// Decode mocks base method.
+func (m *MockIMongoSingleResult) Decode(v interface{}) error <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Decode", v)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// Decode indicates an expected call of Decode.
+func (mr *MockIMongoSingleResultMockRecorder) Decode(v interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decode", reflect.TypeOf((*MockIMongoSingleResult)(nil).Decode), v)
+}</span>
+
+// MockIMongoDeleteResult is a mock of IMongoDeleteResult interface.
+type MockIMongoDeleteResult struct {
+        ctrl     *gomock.Controller
+        recorder *MockIMongoDeleteResultMockRecorder
+}
+
+// MockIMongoDeleteResultMockRecorder is the mock recorder for MockIMongoDeleteResult.
+type MockIMongoDeleteResultMockRecorder struct {
+        mock *MockIMongoDeleteResult
+}
+
+// NewMockIMongoDeleteResult creates a new mock instance.
+func NewMockIMongoDeleteResult(ctrl *gomock.Controller) *MockIMongoDeleteResult <span class="cov0" title="0">{
+        mock := &amp;MockIMongoDeleteResult{ctrl: ctrl}
+        mock.recorder = &amp;MockIMongoDeleteResultMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIMongoDeleteResult) EXPECT() *MockIMongoDeleteResultMockRecorder <span class="cov0" title="0">{
+        return m.recorder
+}</span>
+
+// MockIMongoUpdateResult is a mock of IMongoUpdateResult interface.
+type MockIMongoUpdateResult struct {
+        ctrl     *gomock.Controller
+        recorder *MockIMongoUpdateResultMockRecorder
+}
+
+// MockIMongoUpdateResultMockRecorder is the mock recorder for MockIMongoUpdateResult.
+type MockIMongoUpdateResultMockRecorder struct {
+        mock *MockIMongoUpdateResult
+}
+
+// NewMockIMongoUpdateResult creates a new mock instance.
+func NewMockIMongoUpdateResult(ctrl *gomock.Controller) *MockIMongoUpdateResult <span class="cov8" title="1">{
+        mock := &amp;MockIMongoUpdateResult{ctrl: ctrl}
+        mock.recorder = &amp;MockIMongoUpdateResultMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIMongoUpdateResult) EXPECT() *MockIMongoUpdateResultMockRecorder <span class="cov0" title="0">{
+        return m.recorder
+}</span>
+
+// UnmarshalBSON mocks base method.
+func (m *MockIMongoUpdateResult) UnmarshalBSON(b []byte) error <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "UnmarshalBSON", b)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// UnmarshalBSON indicates an expected call of UnmarshalBSON.
+func (mr *MockIMongoUpdateResultMockRecorder) UnmarshalBSON(b interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnmarshalBSON", reflect.TypeOf((*MockIMongoUpdateResult)(nil).UnmarshalBSON), b)
+}</span>
+
+// MockIMongoCursor is a mock of IMongoCursor interface.
+type MockIMongoCursor struct {
+        ctrl     *gomock.Controller
+        recorder *MockIMongoCursorMockRecorder
+}
+
+// MockIMongoCursorMockRecorder is the mock recorder for MockIMongoCursor.
+type MockIMongoCursorMockRecorder struct {
+        mock *MockIMongoCursor
+}
+
+// NewMockIMongoCursor creates a new mock instance.
+func NewMockIMongoCursor(ctrl *gomock.Controller) *MockIMongoCursor <span class="cov8" title="1">{
+        mock := &amp;MockIMongoCursor{ctrl: ctrl}
+        mock.recorder = &amp;MockIMongoCursorMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIMongoCursor) EXPECT() *MockIMongoCursorMockRecorder <span class="cov8" title="1">{
+        return m.recorder
+}</span>
+
+// All mocks base method.
+func (m *MockIMongoCursor) All(ctx context.Context, results interface{}) error <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "All", ctx, results)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// All indicates an expected call of All.
+func (mr *MockIMongoCursorMockRecorder) All(ctx, results interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "All", reflect.TypeOf((*MockIMongoCursor)(nil).All), ctx, results)
+}</span>
+
+// Close mocks base method.
+func (m *MockIMongoCursor) Close(arg0 context.Context) error <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Close", arg0)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// Close indicates an expected call of Close.
+func (mr *MockIMongoCursorMockRecorder) Close(arg0 interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockIMongoCursor)(nil).Close), arg0)
+}</span>
+
+// Decode mocks base method.
+func (m *MockIMongoCursor) Decode(arg0 interface{}) error <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Decode", arg0)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// Decode indicates an expected call of Decode.
+func (mr *MockIMongoCursorMockRecorder) Decode(arg0 interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decode", reflect.TypeOf((*MockIMongoCursor)(nil).Decode), arg0)
+}</span>
+
+// Next mocks base method.
+func (m *MockIMongoCursor) Next(arg0 context.Context) bool <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Next", arg0)
+        ret0, _ := ret[0].(bool)
+        return ret0
+}</span>
+
+// Next indicates an expected call of Next.
+func (mr *MockIMongoCursorMockRecorder) Next(arg0 interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Next", reflect.TypeOf((*MockIMongoCursor)(nil).Next), arg0)
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package repo
+
+import (
+        "reddit_backend/pkg/utils"
+        "sort"
+        "sync"
+)
+
+type PostMap struct {
+        Mu    *sync.RWMutex
+        Posts map[string]*Post
+}
+
+func (p *PostMap) GetPostsByCategory(category string) ([]Post, error) <span class="cov0" title="0">{
+        var result []Post
+        p.Mu.RLock()
+        for _, v := range p.Posts </span><span class="cov0" title="0">{
+                if v.Category == category </span><span class="cov0" title="0">{
+                        result = append(result, *v)
+                }</span>
+        }
+        <span class="cov0" title="0">p.Mu.RUnlock()
+        sort.SliceStable(result, func(i, j int) bool </span><span class="cov0" title="0">{
+                return result[i].Score &gt; result[j].Score
+        }</span>)
+        <span class="cov0" title="0">return result, nil</span>
+}
+
+func (p *PostMap) GetPostsById(id string) (Post, error) <span class="cov0" title="0">{
+        p.Mu.RLock()
+        post, ok := p.Posts[id]
+        p.Mu.RUnlock()
+        if !ok </span><span class="cov0" title="0">{
+                return Post{}, utils.ErrInvPostId
+        }</span>
+        <span class="cov0" title="0">return *post, nil</span>
+}
+
+func (p *PostMap) DeletePostById(id string) error <span class="cov0" title="0">{
+        p.Mu.Lock()
+        delete(p.Posts, id)
+        p.Mu.Unlock()
+        return nil
+}</span>
+
+func (p *PostMap) UpdatePost(post Post) error <span class="cov0" title="0">{
+        p.Mu.Lock()
+        p.Posts[post.Id] = &amp;post
+        p.Mu.Unlock()
+        return nil
+}</span>
+
+func (p *PostMap) CreatePost(post Post) error <span class="cov0" title="0">{
+        p.Mu.Lock()
+        p.Posts[post.Id] = &amp;post
+        p.Mu.Unlock()
+        return nil
+}</span>
+
+func (p *PostMap) GetAllPosts() ([]Post, error) <span class="cov0" title="0">{
+        v := make([]Post, 0, len(p.Posts))
+        p.Mu.RLock()
+        for _, value := range p.Posts </span><span class="cov0" title="0">{
+                v = append(v, *value)
+        }</span>
+        <span class="cov0" title="0">p.Mu.RUnlock()
+        sort.SliceStable(v, func(i, j int) bool </span><span class="cov0" title="0">{
+                return v[i].Score &gt; v[j].Score
+        }</span>)
+        <span class="cov0" title="0">return v, nil</span>
+}
+
+func (p *PostMap) GetPostsByUser(username string) ([]Post, error) <span class="cov0" title="0">{
+        result := []Post{}
+        p.Mu.RLock()
+        for _, v := range p.Posts </span><span class="cov0" title="0">{
+                if v.Author.Username == username </span><span class="cov0" title="0">{
+                        result = append(result, *v)
+                }</span>
+
+        }
+        <span class="cov0" title="0">p.Mu.RUnlock()
+        sort.SliceStable(result, func(i, j int) bool </span><span class="cov0" title="0">{
+                return result[i].Score &gt; result[j].Score
+        }</span>)
+        <span class="cov0" title="0">return result, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package repo
+
+import (
+        "context"
+        "reddit_backend/pkg/logging"
+        "reddit_backend/pkg/utils"
+        "sort"
+
+        "gopkg.in/mgo.v2/bson"
+)
+
+type PostMongo struct {
+        Logger  *logging.Logger
+        Mongo   IMongoCollection
+        Context *context.Context
+}
+
+func (p *PostMongo) GetPostsByCategory(ctx context.Context, category string) ([]Post, error) <span class="cov8" title="1">{
+        var result []Post
+        cur, err := p.Mongo.Find(*p.Context, bson.M{"category": category})
+        if err != nil </span><span class="cov8" title="1">{
+                p.Logger.Z(ctx).Error("cannot get posts by category from mongo: ", err)
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">err = cur.All(*p.Context, &amp;result)
+        if err != nil </span><span class="cov0" title="0">{
+                p.Logger.Z(ctx).Error("cannot decode posts by category: ", err)
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">sort.SliceStable(result, func(i, j int) bool </span><span class="cov0" title="0">{
+                return result[i].Score &gt; result[j].Score
+        }</span>)
+        <span class="cov8" title="1">return result, nil</span>
+}
+
+func (p *PostMongo) GetPostsById(ctx context.Context, id string) (Post, error) <span class="cov8" title="1">{
+        post := &amp;Post{}
+        err := p.Mongo.FindOne(*p.Context, bson.M{"id": id}).Decode(&amp;post)
+        if err != nil </span><span class="cov8" title="1">{
+                if err.Error() == "mongo: no documents in result" </span><span class="cov0" title="0">{
+                        return Post{}, utils.ErrInvPostId
+                }</span>
+                <span class="cov8" title="1">p.Logger.Z(ctx).Error("cannot get post by id: ", err)
+                return Post{}, err</span>
+        }
+        <span class="cov8" title="1">return *post, nil</span>
+}
+
+func (p *PostMongo) DeletePostById(ctx context.Context, id string) error <span class="cov0" title="0">{
+        _, err := p.Mongo.DeleteOne(*p.Context, bson.M{"id": id})
+        if err != nil </span><span class="cov0" title="0">{
+                p.Logger.Z(ctx).Error("cannot delete post in mongo: ", err)
+                return err
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (p *PostMongo) UpdatePost(ctx context.Context, post Post) error <span class="cov8" title="1">{
+        _, err := p.Mongo.UpdateOne(*p.Context, bson.M{"id": post.Id}, bson.M{
+                "$set": post,
+        })
+        if err != nil </span><span class="cov8" title="1">{
+                p.Logger.Z(ctx).Error("cannot update post in mongo: ", err)
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (p *PostMongo) AddComment(ctx context.Context, postId string, comment Comment) error <span class="cov0" title="0">{
+        _, err := p.Mongo.UpdateOne(*p.Context, bson.M{"id": postId}, bson.M{
+                "$push": bson.M{
+                        "comments": comment,
+                },
+        })
+        if err != nil </span><span class="cov0" title="0">{
+                p.Logger.Z(ctx).Error("cannot update post in mongo: ", err)
+                return err
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (p *PostMongo) CreatePost(ctx context.Context, post Post) error <span class="cov0" title="0">{
+        _, err := p.Mongo.InsertOne(*p.Context, &amp;post)
+        if err != nil </span><span class="cov0" title="0">{
+                p.Logger.Z(ctx).Error("cannot add post to mongo: ", err)
+                return err
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (p *PostMongo) GetAllPosts(ctx context.Context) ([]Post, error) <span class="cov8" title="1">{
+        posts := []Post{}
+        cur, err := p.Mongo.Find(*p.Context, bson.M{})
+        if err != nil </span><span class="cov0" title="0">{
+                p.Logger.Z(ctx).Error("cannot get all posts from mongo: ", err)
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">err = cur.All(*p.Context, &amp;posts)
+        if err != nil </span><span class="cov8" title="1">{
+                p.Logger.Z(ctx).Error("cannot decode all posts: ", err)
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">sort.SliceStable(posts, func(i, j int) bool </span><span class="cov0" title="0">{
+                return posts[i].Score &gt; posts[j].Score
+        }</span>)
+        <span class="cov8" title="1">return posts, nil</span>
+}
+
+func (p *PostMongo) GetPostsByUser(ctx context.Context, username string) ([]Post, error) <span class="cov8" title="1">{
+        result := []Post{}
+        cur, err := p.Mongo.Find(*p.Context, bson.M{"author.username": username})
+        if err != nil </span><span class="cov8" title="1">{
+                p.Logger.Z(ctx).Error("cannot get users posts from mongo: ", err)
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">err = cur.All(*p.Context, &amp;result)
+        if err != nil </span><span class="cov0" title="0">{
+                p.Logger.Z(ctx).Error("cannot decode users posts: ", err)
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">sort.SliceStable(result, func(i, j int) bool </span><span class="cov0" title="0">{
+                return result[i].Score &gt; result[j].Score
+        }</span>)
+        <span class="cov8" title="1">return result, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package repo
+
+type RepoManager struct {
+        Users    UserDB
+        Posts    PostDB
+        Sessions SessionDB
+}
+
+func NewRepoManager(sessionDB SessionDB, userDB UserDB, postDB PostDB) *RepoManager <span class="cov0" title="0">{
+        var r RepoManager
+        r.Users = userDB
+        r.Posts = postDB
+        r.Sessions = sessionDB
+        return &amp;r
+}</span>
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package repo
+
+import (
+        "sync"
+)
+
+type SessionsMap struct {
+        Mu       *sync.RWMutex
+        Sessions map[string]*Sessions
+}
+
+func (s *SessionsMap) AddSession(userId string, token string) error <span class="cov0" title="0">{
+        s.Mu.RLock()
+        _, ok := s.Sessions[userId]
+        s.Mu.RUnlock()
+        if !ok </span><span class="cov0" title="0">{
+                s.Mu.Lock()
+                s.Sessions[userId] = &amp;Sessions{Sessions: []string{token}}
+                s.Mu.Unlock()
+                return nil
+        }</span>
+        <span class="cov0" title="0">s.Mu.Lock()
+        s.Sessions[userId].Sessions = append(s.Sessions[userId].Sessions, token)
+        s.Mu.Unlock()
+        return nil</span>
+}
+
+func (s *SessionsMap) CheckSession(userId string, token string) (bool, error) <span class="cov0" title="0">{
+        s.Mu.RLock()
+        usersSessions, ok := s.Sessions[userId]
+        s.Mu.RUnlock()
+        if ok </span><span class="cov0" title="0">{
+                for _, t := range usersSessions.Sessions </span><span class="cov0" title="0">{
+                        if t == token </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                }
+        }
+        <span class="cov0" title="0">return false, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">package repo
+
+import (
+        "context"
+        "reddit_backend/pkg/logging"
+        "strings"
+        "time"
+
+        "github.com/gomodule/redigo/redis"
+)
+
+type SessionsRedis struct {
+        Logger    *logging.Logger
+        RedisConn redis.Conn
+}
+
+func (s *SessionsRedis) AddSession(ctx context.Context, userId string, session_id string) error <span class="cov0" title="0">{
+        err := s.deleteExpSessions(ctx, userId)
+        if err != nil </span><span class="cov0" title="0">{
+                s.Logger.Z(ctx).Error("cant delete exp sessins from Redis: ", err)
+                //return  в целом это не должно влиять на возможность залогиниться
+        }</span>
+        <span class="cov0" title="0">sesOpts := []string{time.Now().Add(72 * time.Hour).Format("2006-01-02T15:04:05Z07:00")}
+        _, err = s.RedisConn.Do("HSET", userId, session_id, sesOpts)
+        if err != nil </span><span class="cov0" title="0">{
+                s.Logger.Z(ctx).Error("cant hset session_id to Redis: ", err)
+                return err
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (s *SessionsRedis) CheckSession(ctx context.Context, userId string, session_id string) (bool, error) <span class="cov0" title="0">{
+        _, err := redis.String(s.RedisConn.Do("HGET", userId, session_id))
+        if err != nil </span><span class="cov0" title="0">{
+                if err.Error() == "redigo: nil returned" </span><span class="cov0" title="0">{
+                        return false, nil
+                }</span>
+                <span class="cov0" title="0">s.Logger.Z(ctx).Error("cant get data from Redis: ", err)
+                return false, err</span>
+        }
+
+        <span class="cov0" title="0">return true, nil</span>
+}
+
+func (s *SessionsRedis) deleteExpSessions(ctx context.Context, userId string) error <span class="cov0" title="0">{
+        v, err := redis.StringMap(s.RedisConn.Do("HGETALL", userId))
+        if err != nil </span><span class="cov0" title="0">{
+                s.Logger.Z(ctx).Error("cant get data from Redis: ", err)
+                return err
+        }</span>
+
+        <span class="cov0" title="0">for i, v := range v </span><span class="cov0" title="0">{
+                arr := strings.Split(v[1:len(v)-1], " ")
+                t, err := time.Parse("2006-01-02T15:04:05Z07:00", arr[0])
+                if err != nil </span><span class="cov0" title="0">{
+                        s.Logger.Z(ctx).Error("cant convert time: ", err)
+                        continue</span>
+                }
+
+                <span class="cov0" title="0">if t.Before(time.Now()) </span><span class="cov0" title="0">{
+                        _, err := s.RedisConn.Do("HDEL", userId, i)
+                        if err != nil </span><span class="cov0" title="0">{
+                                s.Logger.Z(ctx).Error("cant delete session from Redis: ", err)
+                                continue</span>
+                        }
+                }
+        }
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">package repo
+
+import (
+        "reddit_backend/pkg/utils"
+        "sync"
+)
+
+type UserMap struct {
+        Mu    *sync.RWMutex
+        Users map[string]*User
+}
+
+func (u *UserMap) CreateUser(id string, username string, password string) (*User, error) <span class="cov0" title="0">{
+        u.Mu.RLock()
+        _, ok := u.Users[username]
+        u.Mu.RUnlock()
+        if ok </span><span class="cov0" title="0">{
+                return nil, utils.ErrUserExist
+        }</span>
+        <span class="cov0" title="0">u.Mu.Lock()
+        u.Users[username] = &amp;User{Id: id, Username: username, password: password}
+        u.Mu.Unlock()
+        return u.Users[username], nil</span>
+}
+
+func (u *UserMap) CheckPasswordUser(username string, password string) (*User, error) <span class="cov0" title="0">{
+        u.Mu.RLock()
+        user, ok := u.Users[username]
+        u.Mu.RUnlock()
+        if !ok </span><span class="cov0" title="0">{
+                return nil, utils.ErrNoUser
+        }</span>
+        <span class="cov0" title="0">if user.password != password </span><span class="cov0" title="0">{
+                return nil, utils.ErrBadPass
+        }</span>
+        <span class="cov0" title="0">return user, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">package repo
+
+import (
+        "context"
+        "database/sql"
+        "reddit_backend/pkg/logging"
+        "reddit_backend/pkg/utils"
+)
+
+type UserMySql struct {
+        Logger *logging.Logger
+        MySql  *sql.DB
+}
+
+func (u *UserMySql) CreateUser(ctx context.Context, id string, username string, password string) (*User, error) <span class="cov8" title="1">{
+        user := &amp;User{}
+        userRaw := u.MySql.QueryRow("SELECT id, username, password FROM users WHERE username = ?", username)
+        err := userRaw.Scan(&amp;user.Id, &amp;user.Username, &amp;user.password)
+        if err == nil </span><span class="cov8" title="1">{
+                return nil, utils.ErrUserExist
+        }</span>
+        <span class="cov8" title="1">if err != nil &amp;&amp; err != sql.ErrNoRows </span><span class="cov8" title="1">{
+                u.Logger.Z(ctx).Error("cannot get user from mysql: ", err)
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">user = &amp;User{Id: id, Username: username, password: password}
+        _, err = u.MySql.Exec("INSERT INTO users (`id`, `username`, `password`) VALUES (?, ?, ?)", user.Id, user.Username, user.password)
+        if err != nil </span><span class="cov8" title="1">{
+                u.Logger.Z(ctx).Error("cannot create user into mysql: ", err)
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return user, nil</span>
+}
+
+func (u *UserMySql) CheckPasswordUser(ctx context.Context, username string, password string) (*User, error) <span class="cov8" title="1">{
+        user := &amp;User{}
+        userRaw := u.MySql.QueryRow("SELECT id, username, password FROM users WHERE username = ?", username)
+        err := userRaw.Scan(&amp;user.Id, &amp;user.Username, &amp;user.password)
+        if err != nil </span><span class="cov8" title="1">{
+                if err == sql.ErrNoRows </span><span class="cov8" title="1">{
+                        return nil, utils.ErrNoUser
+                }</span>
+                <span class="cov8" title="1">u.Logger.Z(ctx).Error("cannot get user from mysql: ", err)
+                return nil, err</span>
+        }
+        <span class="cov8" title="1">if user.password != password </span><span class="cov8" title="1">{
+                return nil, utils.ErrBadPass
+        }</span>
+        <span class="cov8" title="1">return user, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file13" style="display: none">package users
+
+import (
+        "net/http"
+        "reddit_backend/pkg/logging"
+        "reddit_backend/pkg/repo"
+        "reddit_backend/pkg/sessions"
+        "reddit_backend/pkg/utils"
+        //"github.com/gorilla/mux"
+)
+
+type Users struct {
+        Repo    repo.UserDB
+        Session *sessions.Sessions
+        Logger  *logging.Logger
+}
+
+type UserReq struct {
+        Password string
+        Username string
+}
+
+func (u *Users) CreateUser(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var userReq UserReq
+        if utils.HandleErrDecodeReq(w, r, &amp;userReq) </span><span class="cov8" title="1">{
+                return
+        }</span>
+        <span class="cov8" title="1">token, err := u.createUser(r.Context(), &amp;userReq)
+        if err != nil </span><span class="cov8" title="1">{
+                if err == utils.ErrUserExist </span><span class="cov8" title="1">{
+                        utils.HandleErr(w, r, err, http.StatusUnprocessableEntity, u.Logger, utils.Return422Error{
+                                Location: "body",
+                                Param:    "username",
+                                Value:    userReq.Username,
+                                Msg:      err.Error()})
+                        return
+                }</span>
+                <span class="cov8" title="1">w.WriteHeader(http.StatusInternalServerError)
+                return</span>
+        }
+        <span class="cov8" title="1">utils.HandleResult(w, r, &amp;utils.ReturnToken{Token: token}, http.StatusCreated, u.Logger)</span>
+}
+
+func (u *Users) Login(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var userReq UserReq
+        if utils.HandleErrDecodeReq(w, r, &amp;userReq) </span><span class="cov8" title="1">{
+                return
+        }</span>
+        <span class="cov8" title="1">user, err := u.Repo.CheckPasswordUser(r.Context(), userReq.Username, userReq.Password)
+        if utils.HandleErr(w, r, err, http.StatusUnauthorized, u.Logger) </span><span class="cov8" title="1">{
+                return
+        }</span>
+        <span class="cov8" title="1">token, err := u.Session.CreateToken(r.Context(), user)
+        if err != nil </span><span class="cov8" title="1">{
+                w.WriteHeader(http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">utils.HandleResult(w, r, &amp;utils.ReturnToken{Token: token}, http.StatusOK, u.Logger)</span>
+}
+</pre>
+		
+		<pre class="file" id="file14" style="display: none">package users
+
+import (
+        "context"
+        "reddit_backend/pkg/utils"
+)
+
+func (u *Users) createUser(ctx context.Context, userReq *UserReq) (string, error) <span class="cov8" title="1">{
+        user, err := u.Repo.CreateUser(ctx, utils.GenerateId(), userReq.Username, userReq.Password)
+        if err != nil </span><span class="cov8" title="1">{
+                return "", err
+        }</span>
+        <span class="cov8" title="1">token, err := u.Session.CreateToken(ctx, user)
+        if err != nil </span><span class="cov8" title="1">{
+                return "", err
+        }</span>
+        <span class="cov8" title="1">return token, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file15" style="display: none">// Code generated by MockGen. DO NOT EDIT.
+// Source: ../repo/repo_user.go
+
+// Package users is a generated GoMock package.
+package users
+
+import (
+        context "context"
+        repo "reddit_backend/pkg/repo"
+        reflect "reflect"
+
+        gomock "github.com/golang/mock/gomock"
+)
+
+// MockUserDB is a mock of UserDB interface.
+type MockUserDB struct {
+        ctrl     *gomock.Controller
+        recorder *MockUserDBMockRecorder
+}
+
+// MockUserDBMockRecorder is the mock recorder for MockUserDB.
+type MockUserDBMockRecorder struct {
+        mock *MockUserDB
+}
+
+// NewMockUserDB creates a new mock instance.
+func NewMockUserDB(ctrl *gomock.Controller) *MockUserDB <span class="cov8" title="1">{
+        mock := &amp;MockUserDB{ctrl: ctrl}
+        mock.recorder = &amp;MockUserDBMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUserDB) EXPECT() *MockUserDBMockRecorder <span class="cov8" title="1">{
+        return m.recorder
+}</span>
+
+// CheckPasswordUser mocks base method.
+func (m *MockUserDB) CheckPasswordUser(ctx context.Context, username, password string) (*repo.User, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "CheckPasswordUser", ctx, username, password)
+        ret0, _ := ret[0].(*repo.User)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// CheckPasswordUser indicates an expected call of CheckPasswordUser.
+func (mr *MockUserDBMockRecorder) CheckPasswordUser(ctx, username, password interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckPasswordUser", reflect.TypeOf((*MockUserDB)(nil).CheckPasswordUser), ctx, username, password)
+}</span>
+
+// CreateUser mocks base method.
+func (m *MockUserDB) CreateUser(ctx context.Context, id, username, password string) (*repo.User, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "CreateUser", ctx, id, username, password)
+        ret0, _ := ret[0].(*repo.User)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// CreateUser indicates an expected call of CreateUser.
+func (mr *MockUserDBMockRecorder) CreateUser(ctx, id, username, password interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockUserDB)(nil).CreateUser), ctx, id, username, password)
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
